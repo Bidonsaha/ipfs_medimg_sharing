@@ -19,9 +19,11 @@ class Dashboard extends Component {
       account: null,
       idx: 0,
       resHash: "",
+      imageURL: "",
     };
     this.captureFile = this.captureFile.bind(this);
     this.onSubmit = this.onSubmit.bind(this);
+    this.handleUploadImage = this.handleUploadImage.bind(this);
   }
 
   // async componentDidMount() {
@@ -188,6 +190,7 @@ class Dashboard extends Component {
   captureFile(event) {
     event.preventDefault();
     const file = event.target.files[0];
+    //get the png image here
     const reader = new window.FileReader();
     reader.readAsArrayBuffer(file);
     reader.onloadend = () => {
@@ -196,25 +199,72 @@ class Dashboard extends Component {
     };
   }
 
-  // onSubmit(event) {
-  //   event.preventDefault();
-  //   ipfs.files.add(this.state.buffer, async (error, result) => {
-  //     if (error) {
-  //       console.error(error);
-  //       return;
-  //     }
-  //     this.simpleStorageInstance
-  //       .set(result[0].hash, {
-  //         from: this.state.account,
-  //       })
-  //       .then((r) => {
-  //         this.setState({ ipfsHash: result[0].hash });
-  //         console.log(this.state.ipfsHash);
-  //       });
-  //     // this.setState({ ipfsHash: result[0].hash });
-  //     // console.log("ifpsHash", this.state.ipfsHash);
-  //   });
-  // }
+  handleUploadImage(ev) {
+    ev.preventDefault();
+
+    let pid = "";
+    let temp = "";
+    const data = new FormData();
+    data.append("file", this.uploadInput.files[0]);
+    data.append("filename", this.fileName.value);
+
+    fetch("http://localhost:8080/upload", {
+      method: "POST",
+      body: data,
+    }).then((response) => {
+      response.json().then((body) => {
+        console.log(body);
+        pid = body.Patient_ID;
+        console.log(typeof body);
+        temp = JSON.stringify(body);
+        console.log(typeof JSON.stringify(body));
+        this.simpleStorageInstance
+          .set(JSON.stringify(body), { from: this.state.account })
+          .then(async (r) => {
+            this.state.web3.eth.getBlockNumber().then((block) => {
+              console.log("latest block:.......", block);
+              console.log("pid....", typeof pid);
+              const pdata = { pid: pid, block: block };
+
+              fetch(`http://localhost:8080/patient`, {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(pdata),
+              }).then((response) => console.log(response));
+            });
+            // this.state.web3.eth.getTransaction(
+            //   temp.transactions[0],
+            //   async (err, tx) => {
+            //     console.log("tx", tx);
+            //     let tx_data = tx.input;
+            //     // let input_data = "0x" + tx_data.slice(10); // get only data without function selector
+            //     // console.log("inisnde gettx func input data", input_data);
+            //     // let ress = this.state.web3.utils.toString(input_data);
+            //     // console.log("resss", String(ress));
+            //     console.log("tx_input", tx_data.length);
+            //     // const decoder = new InputDataDecoder(abi);
+            //     // const resss = decoder.decodeData(tx_data);
+
+            //     // console.log("resss", resss);
+            //   }
+            // );
+
+            // console.log("outside gettxxxx", this.state.web3);
+            // console.log("ifpsHash", this.state.ipfsHash);
+            // console.log("ifpsHash", result);
+            // console.log("ifpsHash", result[0].hash);
+            // this.getBlock();
+            return this.setState({ ipfsHash: temp });
+          });
+      });
+    });
+
+    // can call blockchain here
+  }
+
   onSubmit(event) {
     event.preventDefault();
     const InputDataDecoder = require("ethereum-input-data-decoder");
@@ -316,23 +366,35 @@ class Dashboard extends Component {
         <nav className="navbar pure-menu pure-menu-horizontal">
           <h1>IPFS File Upload DApp</h1>
         </nav>
-        <h1>Your Image</h1>
-        <p>This image is stored on IPFS and The Ethereum BC</p>
-        <img src={`https://ipfs.io/ipfs/${this.state.ipfsHash}`} alt="" />
+
         <h2>Upload Image</h2>
-        <form onSubmit={this.onSubmit}>
-          <input type="file" onChange={this.captureFile} />
-          <input type="submit" />
-        </form>
+
         <br />
         <br />
-        <h2>Query with block number</h2>
-        <form onSubmit={this.handleNumber.bind(this)}>
-          <label htmlFor="index">Enter block number: </label>
-          <input id="index" name="index" type="number" />
-          <input type="submit" />
+
+        <form onSubmit={this.handleUploadImage}>
+          <div>
+            <input
+              ref={(ref) => {
+                this.uploadInput = ref;
+              }}
+              type="file"
+            />
+          </div>
+          <div>
+            <input
+              ref={(ref) => {
+                this.fileName = ref;
+              }}
+              type="text"
+              placeholder="Enter the desired name of file"
+            />
+          </div>
           <br />
-          <img src={`https://ipfs.io/ipfs/${this.state.resHash}`} alt="" />
+          <div>
+            <button>Upload</button>
+          </div>
+          {/* <img src={this.state.imageURL} alt="img" /> */}
         </form>
       </div>
     );
